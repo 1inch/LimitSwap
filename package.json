@@ -8,12 +8,13 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.1.0"
+    "@openzeppelin/contracts": "^3.4.1-solc-0.7-2"
   },
   "devDependencies": {
+    "@eth-optimism/hardhat-ovm": "^0.2.2",
     "@nomiclabs/hardhat-truffle5": "^2.0.0",
     "@nomiclabs/hardhat-web3": "^2.0.0",
-    "@openzeppelin/test-helpers": "^0.5.11",
+    "@openzeppelin/test-helpers": "^0.5.12",
     "chai": "^4.3.4",
     "coveralls": "^3.1.0",
     "eslint": "^7.28.0",
@@ -25,13 +26,13 @@
     "eth-sig-util": "^3.0.1",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
-    "hardhat": "^2.3.0",
-    "hardhat-deploy": "0.7.11",
+    "hardhat": "^2.6.0",
+    "hardhat-deploy": "^0.8.11",
     "hardhat-gas-reporter": "^1.0.4",
-    "solc": "^0.8.4",
+    "solc": "^0.7.6",
+    "solhint": "^3.3.6",
     "solidity-coverage": "^0.7.16",
-    "solidity-docgen": "^0.5.13",
-    "solhint": "^3.3.6"
+    "solidity-docgen": "^0.5.13"
   },
   "scripts": {
     "test": "hardhat test",

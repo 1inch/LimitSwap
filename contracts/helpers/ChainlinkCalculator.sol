@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.6;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "../interfaces/AggregatorV3Interface.sol";
 
 /// @title A helper contract for interactions with https://docs.chain.link
 contract ChainlinkCalculator {
+    using SafeMath for uint256;
+
     uint256 private constant _SPREAD_DENOMINATOR = 1e9;
     uint256 private constant _ORACLE_EXPIRATION_TIME = 30 minutes;
     uint256 private constant _INVERSE_MASK = 1 << 255;
@@ -23,9 +26,9 @@ contract ChainlinkCalculator {
         bool inverse = inverseAndSpread & _INVERSE_MASK > 0;
         uint256 spread = inverseAndSpread & (~_INVERSE_MASK);
         if (inverse) {
-            return amount * spread * 1e18 / uint256(oracle.latestAnswer()) / _SPREAD_DENOMINATOR;
+            return amount.mul(spread).mul(1e18).div(uint256(oracle.latestAnswer())).div(_SPREAD_DENOMINATOR);
         } else {
-            return amount * spread * uint256(oracle.latestAnswer()) / 1e18 / _SPREAD_DENOMINATOR;
+            return amount.mul(spread).mul(uint256(oracle.latestAnswer())).div(1e18).div(_SPREAD_DENOMINATOR);
         }
     }
 
@@ -37,6 +40,6 @@ contract ChainlinkCalculator {
         // solhint-disable-next-line not-rely-on-time
         require(oracle2.latestTimestamp() + _ORACLE_EXPIRATION_TIME > block.timestamp, "CC: stale data O2");
 
-        return amount * spread * uint256(oracle1.latestAnswer()) / uint256(oracle2.latestAnswer()) / _SPREAD_DENOMINATOR;
+        return amount.mul(spread).mul(uint256(oracle1.latestAnswer())).div(uint256(oracle2.latestAnswer())).div(_SPREAD_DENOMINATOR);
     }
 }

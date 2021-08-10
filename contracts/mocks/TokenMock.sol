@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.6;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -19,6 +19,10 @@ contract TokenMock is ERC20, Ownable {
     }
 
     function getChainId() external view returns (uint256) {
-        return block.chainid;
+        uint256 id;
+        assembly {
+            id := chainid()
+        }
+        return id;
     }
 }
