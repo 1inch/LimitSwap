@@ -14,9 +14,9 @@ function constructor(
 
 
 
-### func_40aVqeY
+### func_602HzuS
 ```solidity
-function func_40aVqeY(
+function func_602HzuS(
   address from,
   address to,
   uint256 tokenId,
@@ -34,9 +34,9 @@ function func_40aVqeY(
 |`token` | contract IERC721 | 
 
 
-### func_20xtkDI
+### func_602HzuS
 ```solidity
-function func_20xtkDI(
+function func_602HzuS(
   address from,
   address to,
   uint256 tokenId,

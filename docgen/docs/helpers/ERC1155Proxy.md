@@ -14,9 +14,9 @@ function constructor(
 
 
 
-### func_733NCGU
+### func_301JL5R
 ```solidity
-function func_733NCGU(
+function func_301JL5R(
   address from,
   address to,
   uint256 amount,

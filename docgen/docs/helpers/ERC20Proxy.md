@@ -14,9 +14,9 @@ function constructor(
 
 
 
-### func_50BkM4K
+### func_602HzuS
 ```solidity
-function func_50BkM4K(
+function func_602HzuS(
   address from,
   address to,
   uint256 amount,

@@ -9,15 +9,15 @@ import "./ImmutableOwner.sol";
 
 /* solhint-disable func-name-mixedcase */
 
-abstract contract ERC20Proxy is ImmutableOwner {
+contract ERC20Proxy is ImmutableOwner {
     using SafeERC20 for IERC20;
 
-    constructor() {
-        require(ERC20Proxy.func_50BkM4K.selector == bytes4(uint32(IERC20.transferFrom.selector) + 1), "ERC20Proxy: bad selector");
+    constructor(address _immutableOwner) ImmutableOwner(_immutableOwner) {
+        require(ERC20Proxy.func_602HzuS.selector == IERC20.transferFrom.selector, "ERC20Proxy: bad selector");
     }
 
-    // keccak256("func_50BkM4K(address,address,uint256,address)") = 0x23b872de
-    function func_50BkM4K(address from, address to, uint256 amount, IERC20 token) external onlyImmutableOwner {
+    // keccak256("func_602HzuS(address,address,uint256,address)") = 0x23b872dd
+    function func_602HzuS(address from, address to, uint256 amount, IERC20 token) external onlyImmutableOwner {
         token.safeTransferFrom(from, to, amount);
     }
 }

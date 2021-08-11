@@ -4,13 +4,12 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
 import "./helpers/AmountCalculator.sol";
 import "./helpers/ChainlinkCalculator.sol";
-import "./helpers/ERC1155Proxy.sol";
-import "./helpers/ERC20Proxy.sol";
-import "./helpers/ERC721Proxy.sol";
+import "./helpers/ImmutableOwner.sol";
 import "./helpers/NonceManager.sol";
 import "./helpers/PredicateHelper.sol";
 import "./interfaces/InteractiveMaker.sol";
@@ -25,9 +24,6 @@ contract LimitOrderProtocol is
     EIP712("1inch Limit Order Protocol", "1"),
     AmountCalculator,
     ChainlinkCalculator,
-    ERC1155Proxy,
-    ERC20Proxy,
-    ERC721Proxy,
     NonceManager,
     PredicateHelper
 {
@@ -82,8 +78,7 @@ contract LimitOrderProtocol is
         "OrderRFQ(uint256 info,address makerAsset,address takerAsset,bytes makerAssetData,bytes takerAssetData)"
     );
 
-    // solhint-disable-next-line var-name-mixedcase
-    bytes4 immutable private _MAX_SELECTOR = bytes4(uint32(IERC20.transferFrom.selector) + 10);
+    uint256 constant public MAGIC_SALT_SKIPPING_INVALIDATION = 0xDEF1DEF1;
 
     uint256 constant private _FROM_INDEX = 0;
     uint256 constant private _TO_INDEX = 1;
@@ -202,7 +197,7 @@ contract LimitOrderProtocol is
         uint256 expiration = uint128(order.info) >> 64;
         require(expiration == 0 || block.timestamp <= expiration, "LOP: order expired");  // solhint-disable-line not-rely-on-time
 
-        {  // Stack too deep
+        if (uint64(order.info) != MAGIC_SALT_SKIPPING_INVALIDATION) {
             // Validate double spend
             address maker = order.makerAssetData.decodeAddress(_FROM_INDEX);
             uint256 invalidatorSlot = uint64(order.info) >> 8;
@@ -287,7 +282,7 @@ contract LimitOrderProtocol is
 
         {  // Stack too deep
             uint256 remainingMakerAmount;
-            { // Stack too deep
+            if (uint64(order.salt) != MAGIC_SALT_SKIPPING_INVALIDATION) {
                 bool orderExists;
                 (orderExists, remainingMakerAmount) = _remaining[orderHash].trySub(1);
                 if (!orderExists) {
@@ -299,6 +294,9 @@ contract LimitOrderProtocol is
                         require(_remaining[orderHash] == 0, "LOP: reentrancy detected");
                     }
                 }
+            }
+            else {
+                remainingMakerAmount = order.makerAssetData.decodeUint256(_AMOUNT_INDEX);
             }
 
             // Check if order is valid
@@ -323,7 +321,9 @@ contract LimitOrderProtocol is
 
             // Update remaining amount in storage
             remainingMakerAmount = remainingMakerAmount.sub(makingAmount, "LOP: taking > remaining");
-            _remaining[orderHash] = remainingMakerAmount + 1;
+            if (uint64(order.salt) != MAGIC_SALT_SKIPPING_INVALIDATION) {
+                _remaining[orderHash] = remainingMakerAmount + 1;
+            }
             emit OrderFilled(msg.sender, orderHash, remainingMakerAmount);
         }
 
@@ -387,8 +387,8 @@ contract LimitOrderProtocol is
         require(takerAssetData.length >= 100, "LOP: bad takerAssetData.length");
         bytes4 makerSelector = makerAssetData.decodeSelector();
         bytes4 takerSelector = takerAssetData.decodeSelector();
-        require(makerSelector >= IERC20.transferFrom.selector && makerSelector <= _MAX_SELECTOR, "LOP: bad makerAssetData.selector");
-        require(takerSelector >= IERC20.transferFrom.selector && takerSelector <= _MAX_SELECTOR, "LOP: bad takerAssetData.selector");
+        require(makerSelector == IERC20.transferFrom.selector, "LOP: bad makerAssetData.selector");
+        require(takerSelector == IERC20.transferFrom.selector, "LOP: bad takerAssetData.selector");
 
         address maker = address(makerAssetData.decodeAddress(_FROM_INDEX));
         if ((signature.length != 65 && signature.length != 64) || SilentECDSA.recover(orderHash, signature) != maker) {

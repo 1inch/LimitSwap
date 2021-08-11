@@ -7,6 +7,7 @@ const Wallet = require('ethereumjs-wallet').default;
 
 const TokenMock = artifacts.require('TokenMock');
 const LimitOrderProtocol = artifacts.require('LimitOrderProtocol');
+const ERC20Proxy = artifacts.require('ERC20Proxy');
 
 const { profileEVM, gasspectEVM } = require('./helpers/profileEVM');
 const { buildOrderData, buildOrderRFQData } = require('./helpers/orderUtils');
@@ -52,6 +53,7 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
         this.weth = await TokenMock.new('WETH', 'WETH');
 
         this.swap = await LimitOrderProtocol.new();
+        this.erc20proxy = await ERC20Proxy.new(this.swap.address);
 
         // We get the chain id from the contract because Ganache (used for coverage) does not return the same chain id
         // from within the EVM as from the JSON RPC interface.
@@ -63,10 +65,12 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
         await this.dai.mint(_, '1000000');
         await this.weth.mint(_, '1000000');
 
-        await this.dai.approve(this.swap.address, '1000000');
-        await this.weth.approve(this.swap.address, '1000000');
-        await this.dai.approve(this.swap.address, '1000000', { from: wallet });
-        await this.weth.approve(this.swap.address, '1000000', { from: wallet });
+        for (let to of [this.swap.address, this.erc20proxy.address]) {
+            await this.dai.approve(to, '1000000');
+            await this.weth.approve(to, '1000000');
+            await this.dai.approve(to, '1000000', { from: wallet });
+            await this.weth.approve(to, '1000000', { from: wallet });
+        }
     });
 
     describe('wip', async function () {
@@ -271,10 +275,10 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
 
     it('ERC20Proxy should work', async function () {
         const order = buildOrder(this.swap, this.dai, this.weth, 10, 10);
-        this.makerAsset = this.swap.address;
-        this.takerAsset = this.swap.address;
-        this.makerAssetData = this.swap.contract.methods.func_50BkM4K(wallet, zeroAddress, 10, this.dai.address).encodeABI();
-        this.takerAssetData = this.swap.contract.methods.func_50BkM4K(zeroAddress, wallet, 10, this.weth.address).encodeABI();
+        this.makerAsset = this.erc20proxy.address;
+        this.takerAsset = this.erc20proxy.address;
+        this.makerAssetData = this.erc20proxy.contract.methods.func_602HzuS(wallet, zeroAddress, 10, this.dai.address).encodeABI();
+        this.takerAssetData = this.erc20proxy.contract.methods.func_602HzuS(zeroAddress, wallet, 10, this.weth.address).encodeABI();
 
         const data = buildOrderData(this.chainId, this.swap.address, order);
         const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
