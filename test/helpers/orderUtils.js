@@ -8,6 +8,13 @@ const OrderRFQ = [
     { name: 'takerAssetData', type: 'bytes' },
 ];
 
+const ABIOrderRFQ = {
+    'OrderRFQ' : OrderRFQ.reduce((obj, item) => {
+        obj[item.name] = item.type;
+        return obj;
+    }, {}),
+};
+
 const Order = [
     { name: 'salt', type: 'uint256' },
     { name: 'makerAsset', type: 'address' },
@@ -43,6 +50,7 @@ function buildOrderRFQData (chainId, verifyingContract, order) {
 }
 
 module.exports = {
+    ABIOrderRFQ,
     buildOrderData,
     buildOrderRFQData,
     name,

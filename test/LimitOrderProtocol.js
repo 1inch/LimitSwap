@@ -1,15 +1,16 @@
-const { expectRevert } = require('@openzeppelin/test-helpers');
+const { expectRevert, ether } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 
 const { bufferToHex } = require('ethereumjs-util');
 const ethSigUtil = require('eth-sig-util');
 const Wallet = require('ethereumjs-wallet').default;
 
+const ContractRFQ = artifacts.require('ContractRFQ');
 const TokenMock = artifacts.require('TokenMock');
 const LimitOrderProtocol = artifacts.require('LimitOrderProtocol');
 
 const { profileEVM, gasspectEVM } = require('./helpers/profileEVM');
-const { buildOrderData, buildOrderRFQData } = require('./helpers/orderUtils');
+const { ABIOrderRFQ, buildOrderData, buildOrderRFQData } = require('./helpers/orderUtils');
 const { toBN, cutLastArg } = require('./helpers/utils');
 
 contract('LimitOrderProtocol', async function ([_, wallet]) {
@@ -37,13 +38,13 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
         };
     }
 
-    function buildOrderRFQ (info, makerAsset, takerAsset, makerAmount, takerAmount, taker = zeroAddress) {
+    function buildOrderRFQ (info, makerAsset, takerAsset, makerAmount, takerAmount, taker = zeroAddress, maker = wallet) {
         return {
             info: info,
             makerAsset: makerAsset.address,
             takerAsset: takerAsset.address,
-            makerAssetData: makerAsset.contract.methods.transferFrom(wallet, taker, makerAmount).encodeABI(),
-            takerAssetData: takerAsset.contract.methods.transferFrom(taker, wallet, takerAmount).encodeABI(),
+            makerAssetData: makerAsset.contract.methods.transferFrom(maker, taker, makerAmount).encodeABI(),
+            takerAssetData: takerAsset.contract.methods.transferFrom(taker, maker, takerAmount).encodeABI(),
         };
     }
 
@@ -703,6 +704,46 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(2));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(2));
             expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(2));
+        });
+    });
+
+    describe('ContractRFQ', async function () {
+        beforeEach(async function () {
+            this.usdc = await TokenMock.new('USDC', 'USDC');
+            this.usdt = await TokenMock.new('USDT', 'USDT');
+            this.rfq = await ContractRFQ.new(this.swap.address, this.usdc.address, this.usdt.address, ether('0.9993'), 'USDT+USDC', 'USDX');
+
+            await this.usdc.mint(_, '1000000000');
+            await this.usdt.mint(_, '1000000000');
+            await this.usdc.mint(this.rfq.address, '1000000000');
+            await this.usdt.mint(this.rfq.address, '1000000000');
+
+            await this.usdc.approve(this.swap.address, '1000000000');
+            await this.usdt.approve(this.swap.address, '1000000000');
+        });
+
+        it('should partial fill RFQ order', async function () {
+            const order = buildOrderRFQ('1', this.usdc, this.usdt, 1000000000, 1000700000, zeroAddress, this.rfq.address);
+            const signature = web3.eth.abi.encodeParameter(ABIOrderRFQ, order);
+
+            const makerUsdc = await this.usdc.balanceOf(this.rfq.address);
+            const takerUsdc = await this.usdc.balanceOf(_);
+            const makerUsdt = await this.usdt.balanceOf(this.rfq.address);
+            const takerUsdt = await this.usdt.balanceOf(_);
+
+            await this.swap.fillOrderRFQ(order, signature, 1000000, 0);
+
+            expect(await this.usdc.balanceOf(this.rfq.address)).to.be.bignumber.equal(makerUsdc.subn(1000000));
+            expect(await this.usdc.balanceOf(_)).to.be.bignumber.equal(takerUsdc.addn(1000000));
+            expect(await this.usdt.balanceOf(this.rfq.address)).to.be.bignumber.equal(makerUsdt.addn(1000700));
+            expect(await this.usdt.balanceOf(_)).to.be.bignumber.equal(takerUsdt.subn(1000700));
+
+            const order2 = buildOrderRFQ('2', this.usdc, this.usdt, 1000000000, 1000700000, zeroAddress, this.rfq.address);
+            const signature2 = web3.eth.abi.encodeParameter(ABIOrderRFQ, order2);
+
+            const receipt = await this.swap.fillOrderRFQ(order2, signature2, 1000000, 0);
+
+            await gasspectEVM(receipt.tx);
         });
     });
 });
