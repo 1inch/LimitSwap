@@ -168,7 +168,11 @@ contract LimitOrderProtocol is
 
     /// @notice Cancels order's quote
     function cancelOrderRFQ(uint256 orderInfo) external {
-        _invalidator[msg.sender][uint64(orderInfo) >> 8] |= (1 << (orderInfo & 0xff));
+        cancelOrderRFQ(orderInfo, 0);
+    }
+
+    function cancelOrderRFQ(uint256 orderInfo, uint256 additionalMask) public {
+        _invalidator[msg.sender][uint64(orderInfo) >> 8] |= (1 << (orderInfo & 0xff)) | additionalMask;
     }
 
     /// @notice Fills order's quote, fully or partially (whichever is possible)
