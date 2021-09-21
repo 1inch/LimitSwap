@@ -38,6 +38,7 @@
     "clean": "rimraf artifacts cache coverage",
     "test": "hardhat test",
     "coverage": "hardhat coverage",
+    "deploy:test": "hardhat deploy",
     "docify": "node docify.js",
     "lint:js": "eslint .",
     "lint:js:fix": "eslint . --fix",

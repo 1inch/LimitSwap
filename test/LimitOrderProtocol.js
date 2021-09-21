@@ -1,4 +1,4 @@
-const { expectRevert } = require('@openzeppelin/test-helpers');
+const { expectRevert, BN, time } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 
 const { bufferToHex } = require('ethereumjs-util');
@@ -12,9 +12,10 @@ const LimitOrderProtocol = artifacts.require('LimitOrderProtocol');
 
 const { profileEVM, gasspectEVM } = require('./helpers/profileEVM');
 const { buildOrderData, buildOrderRFQData } = require('./helpers/orderUtils');
-const { toBN, cutLastArg } = require('./helpers/utils');
+const { getPermit, withTarget } = require('./helpers/eip712');
+const { addr1PrivateKey, toBN, cutLastArg } = require('./helpers/utils');
 
-contract('LimitOrderProtocol', async function ([_, wallet]) {
+contract('LimitOrderProtocol', async function ([addr1, wallet]) {
     const privatekey = '59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
     const account = Wallet.fromPrivateKey(Buffer.from(privatekey, 'hex'));
 
@@ -63,8 +64,8 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
 
         await this.dai.mint(wallet, '1000000');
         await this.weth.mint(wallet, '1000000');
-        await this.dai.mint(_, '1000000');
-        await this.weth.mint(_, '1000000');
+        await this.dai.mint(addr1, '1000000');
+        await this.weth.mint(addr1, '1000000');
 
         await this.dai.approve(this.swap.address, '1000000');
         await this.weth.approve(this.swap.address, '1000000');
@@ -74,8 +75,8 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
 
     describe('wip', async function () {
         it('transferFrom', async function () {
-            await this.dai.approve(_, '2', { from: wallet });
-            await this.dai.transferFrom(wallet, _, '1', { from: _ });
+            await this.dai.approve(addr1, '2', { from: wallet });
+            await this.dai.transferFrom(wallet, addr1, '1', { from: addr1 });
         });
 
         it('should not swap with bad signature', async function () {
@@ -143,9 +144,9 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             const receipt = await this.swap.fillOrder(order, signature, 1, 0, 1);
 
@@ -154,9 +155,9 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             ).to.be.deep.equal([2, 2, 7, 7, 3]);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should swap fully based on RFQ signature', async function () {
@@ -169,9 +170,9 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
                 const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
                 const makerDai = await this.dai.balanceOf(wallet);
-                const takerDai = await this.dai.balanceOf(_);
+                const takerDai = await this.dai.balanceOf(addr1);
                 const makerWeth = await this.weth.balanceOf(wallet);
-                const takerWeth = await this.weth.balanceOf(_);
+                const takerWeth = await this.weth.balanceOf(addr1);
 
                 const receipt = await this.swap.fillOrderRFQ(order, signature, 1, 0);
 
@@ -182,9 +183,9 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
                 await gasspectEVM(receipt.tx);
 
                 expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-                expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+                expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
                 expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-                expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+                expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
             }
         });
 
@@ -197,9 +198,9 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             const receipt = await this.swap.fillOrder(order, signature, 1, 0, 1);
 
@@ -210,9 +211,9 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             // await gasspectEVM(receipt.tx);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should floor maker amount', async function () {
@@ -224,16 +225,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 0, 9, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(9));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(9));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(9));
         });
 
         it('should fail on floor maker amount = 0', async function () {
@@ -259,16 +260,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 4, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(4));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(4));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(4));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
     });
 
@@ -283,16 +284,174 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
         const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
         const makerDai = await this.dai.balanceOf(wallet);
-        const takerDai = await this.dai.balanceOf(_);
+        const takerDai = await this.dai.balanceOf(addr1);
         const makerWeth = await this.weth.balanceOf(wallet);
-        const takerWeth = await this.weth.balanceOf(_);
+        const takerWeth = await this.weth.balanceOf(addr1);
 
         await this.swap.fillOrder(order, signature, 10, 0, 10);
 
         expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(10));
-        expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(10));
+        expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(10));
         expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(10));
-        expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(10));
+        expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(10));
+    });
+
+    describe('Permit', function () {
+        describe('fillOrderToWithPermit', function () {
+            it('DAI => WETH', async function () {
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrder(swap, this.dai, this.weth, 1, 1);
+                const data = buildOrderData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const permit = await getPermit(addr1, addr1PrivateKey, this.weth, '1', this.chainId, swap.address, '1');
+                const targetPermitPair = withTarget(this.weth.address, permit);
+
+                const makerDai = await this.dai.balanceOf(wallet);
+                const takerDai = await this.dai.balanceOf(addr1);
+                const makerWeth = await this.weth.balanceOf(wallet);
+                const takerWeth = await this.weth.balanceOf(addr1);
+                const allowance = await this.weth.allowance(account.getAddressString(), swap.address);
+
+                await swap.fillOrderToWithPermit(order, signature, 1, 0, 1, addr1, targetPermitPair);
+
+                expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
+                expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
+                expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
+                expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
+                expect(allowance).to.be.bignumber.eq(new BN('0'));
+            });
+
+            it('rejects reused signature', async function () {
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrder(swap, this.dai, this.weth, 1, 1);
+                const data = buildOrderData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const permit = await getPermit(addr1, addr1PrivateKey, this.weth, '1', this.chainId, swap.address, '1');
+                const targetPermitPair = withTarget(this.weth.address, permit);
+                const requestFunc = () => swap.fillOrderToWithPermit(order, signature, 0, 1, 1, addr1, targetPermitPair);
+                await requestFunc();
+                await expectRevert(
+                    requestFunc(),
+                    'ERC20Permit: invalid signature',
+                );
+            });
+
+            it('rejects other signature', async function () {
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrder(swap, this.dai, this.weth, 1, 1);
+                const data = buildOrderData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const otherWallet = Wallet.generate();
+                const permit = await getPermit(addr1, otherWallet.getPrivateKey(), this.weth, '1', this.chainId, swap.address, '1');
+                const targetPermitPair = withTarget(this.weth.address, permit);
+                const requestFunc = () => swap.fillOrderToWithPermit(order, signature, 0, 1, 1, addr1, targetPermitPair);
+                await expectRevert(
+                    requestFunc(),
+                    'ERC20Permit: invalid signature',
+                );
+            });
+
+            it('rejects expired permit', async function () {
+                const deadline = (await time.latest()) - time.duration.weeks(1);
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrder(swap, this.dai, this.weth, 1, 1);
+                const data = buildOrderData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const permit = await getPermit(addr1, addr1PrivateKey, this.weth, '1', this.chainId, swap.address, '1', deadline);
+                const targetPermitPair = withTarget(this.weth.address, permit);
+                const requestFunc = () => swap.fillOrderToWithPermit(order, signature, 0, 1, 1, addr1, targetPermitPair);
+                await expectRevert(
+                    requestFunc(),
+                    'expired deadline',
+                );
+            });
+        });
+
+        describe('fillOrderRFQToWithPermit', function () {
+            it('DAI => WETH', async function () {
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrderRFQ('20203181441137406086353707335681', this.dai, this.weth, 1, 1);
+                const data = buildOrderRFQData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const permit = await getPermit(addr1, addr1PrivateKey, this.weth, '1', this.chainId, swap.address, '1');
+                const targetPermitPair = withTarget(this.weth.address, permit);
+
+                const makerDai = await this.dai.balanceOf(wallet);
+                const takerDai = await this.dai.balanceOf(addr1);
+                const makerWeth = await this.weth.balanceOf(wallet);
+                const takerWeth = await this.weth.balanceOf(addr1);
+                const allowance = await this.weth.allowance(account.getAddressString(), swap.address);
+
+                await swap.fillOrderRFQToWithPermit(order, signature, 1, 0, addr1, targetPermitPair);
+
+                expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
+                expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
+                expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
+                expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
+                expect(allowance).to.be.bignumber.eq(new BN('0'));
+            });
+
+            it('rejects reused signature', async function () {
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrderRFQ('20203181441137406086353707335681', this.dai, this.weth, 1, 1);
+                const data = buildOrderRFQData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const permit = await getPermit(addr1, addr1PrivateKey, this.weth, '1', this.chainId, swap.address, '1');
+                const targetPermitPair = withTarget(this.weth.address, permit);
+                const requestFunc = () => swap.fillOrderRFQToWithPermit(order, signature, 0, 1, addr1, targetPermitPair);
+                await requestFunc();
+                await expectRevert(
+                    requestFunc(),
+                    'ERC20Permit: invalid signature',
+                );
+            });
+
+            it('rejects other signature', async function () {
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrderRFQ('20203181441137406086353707335681', this.dai, this.weth, 1, 1);
+                const data = buildOrderRFQData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const otherWallet = Wallet.generate();
+                const permit = await getPermit(addr1, otherWallet.getPrivateKey(), this.weth, '1', this.chainId, swap.address, '1');
+                const targetPermitPair = withTarget(this.weth.address, permit);
+                const requestFunc = () => swap.fillOrderRFQToWithPermit(order, signature, 0, 1, addr1, targetPermitPair);
+                await expectRevert(
+                    requestFunc(),
+                    'ERC20Permit: invalid signature',
+                );
+            });
+
+            it('rejects expired permit', async function () {
+                const deadline = (await time.latest()) - time.duration.weeks(1);
+                const swap = await LimitOrderProtocol.new();
+                await this.dai.approve(swap.address, '1000000', { from: account.getAddressString() });
+                const order = buildOrderRFQ('20203181441137406086353707335681', this.dai, this.weth, 1, 1);
+                const data = buildOrderRFQData(this.chainId, swap.address, order);
+                const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
+
+                const permit = await getPermit(addr1, addr1PrivateKey, this.weth, '1', this.chainId, swap.address, '1', deadline);
+                const targetPermitPair = withTarget(this.weth.address, permit);
+                const requestFunc = () => swap.fillOrderRFQToWithPermit(order, signature, 0, 1, addr1, targetPermitPair);
+                await expectRevert(
+                    requestFunc(),
+                    'expired deadline',
+                );
+            });
+        });
     });
 
     describe('Amount Calculator', async function () {
@@ -303,16 +462,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 10, 0, 10);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(10));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(10));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(10));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(10));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(10));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(10));
         });
 
         it('empty getTakerAmount should not work on partial fill', async function () {
@@ -334,16 +493,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 0, 10, 10);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(10));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(10));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(10));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(10));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(10));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(10));
         });
 
         it('empty getMakerAmount should not work on partial fill', async function () {
@@ -394,13 +553,13 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
     describe('OrderRFQ Cancelation', async function () {
         it('should cancel own order', async function () {
             await this.swap.cancelOrderRFQ('1');
-            const invalidator = await this.swap.invalidatorForOrderRFQ(_, '0');
+            const invalidator = await this.swap.invalidatorForOrderRFQ(addr1, '0');
             expect(invalidator).to.be.bignumber.equal(toBN('2'));
         });
 
         it('should cancel own order with huge number', async function () {
             await this.swap.cancelOrderRFQ('1023');
-            const invalidator = await this.swap.invalidatorForOrderRFQ(_, '3');
+            const invalidator = await this.swap.invalidatorForOrderRFQ(addr1, '3');
             expect(invalidator).to.be.bignumber.equal(toBN('1').shln(255));
         });
 
@@ -420,21 +579,21 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
 
     describe('Private Orders', async function () {
         it('should fill with correct taker', async function () {
-            const order = buildOrder(this.swap, this.dai, this.weth, 1, 1, _);
+            const order = buildOrder(this.swap, this.dai, this.weth, 1, 1, addr1);
             const data = buildOrderData(this.chainId, this.swap.address, order);
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 1, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should not fill with incorrect taker', async function () {
@@ -463,16 +622,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 1, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('`or` should fail', async function () {
@@ -506,16 +665,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 1, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('nonce + ts example', async function () {
@@ -530,21 +689,21 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 1, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('advance nonce', async function () {
             await this.swap.increaseNonce();
-            expect(await this.swap.nonce(_)).to.be.bignumber.equal('1');
+            expect(await this.swap.nonce(addr1)).to.be.bignumber.equal('1');
         });
 
         it('`and` should fail', async function () {
@@ -573,16 +732,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 1, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should not fill when expired', async function () {
@@ -602,16 +761,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrderRFQ(order, signature, 1, 0);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should partial fill RFQ order', async function () {
@@ -620,16 +779,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrderRFQ(order, signature, 1, 0);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should fully fill RFQ order', async function () {
@@ -638,16 +797,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrderRFQ(order, signature, 0, 0);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
 
         it('should not partial fill RFQ order when 0', async function () {
@@ -678,16 +837,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 0, 3, 2);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(2));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(2));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(2));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(2));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(2));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(2));
         });
 
         it('should fill partially if not enough coins (maker)', async function () {
@@ -696,16 +855,16 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
 
             await this.swap.fillOrder(order, signature, 3, 0, 2);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(2));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(2));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(2));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth.addn(2));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(2));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(2));
         });
     });
 
@@ -736,18 +895,18 @@ contract('LimitOrderProtocol', async function ([_, wallet]) {
             const signature = ethSigUtil.signTypedMessage(account.getPrivateKey(), { data });
 
             const makerDai = await this.dai.balanceOf(wallet);
-            const takerDai = await this.dai.balanceOf(_);
+            const takerDai = await this.dai.balanceOf(addr1);
             const makerWeth = await this.weth.balanceOf(wallet);
-            const takerWeth = await this.weth.balanceOf(_);
+            const takerWeth = await this.weth.balanceOf(addr1);
             const makerEth = await web3.eth.getBalance(wallet);
 
             await this.swap.fillOrder(order, signature, 1, 0, 1);
 
             expect(await this.dai.balanceOf(wallet)).to.be.bignumber.equal(makerDai.subn(1));
-            expect(await this.dai.balanceOf(_)).to.be.bignumber.equal(takerDai.addn(1));
+            expect(await this.dai.balanceOf(addr1)).to.be.bignumber.equal(takerDai.addn(1));
             expect(await this.weth.balanceOf(wallet)).to.be.bignumber.equal(makerWeth);
             expect(web3.utils.toBN(await web3.eth.getBalance(wallet))).to.be.bignumber.equal(web3.utils.toBN(makerEth).addn(1));
-            expect(await this.weth.balanceOf(_)).to.be.bignumber.equal(takerWeth.subn(1));
+            expect(await this.weth.balanceOf(addr1)).to.be.bignumber.equal(takerWeth.subn(1));
         });
     });
 });
