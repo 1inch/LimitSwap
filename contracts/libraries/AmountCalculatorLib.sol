@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 /// @title The helper library to calculate linearly taker amount from maker amount and vice versa.
 library AmountCalculatorLib {

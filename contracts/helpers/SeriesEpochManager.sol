@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 /// @title A helper contract to manage nonce with the series
 contract SeriesEpochManager {
