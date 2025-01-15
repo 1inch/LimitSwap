@@ -1,0 +1,76 @@
+{
+  "address": "0x52a8193C7f42b75F27e4ce96f8ddBA7e854453Ef",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ArraySizeMismatch",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address[]",
+          "name": "targets",
+          "type": "address[]"
+        },
+        {
+          "internalType": "bytes[]",
+          "name": "data",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "simulateCalls",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xc933c7196e3e738ef1558590591b9a01af2fbf2c145f916072302c8cef9b1798",
+  "receipt": {
+    "to": null,
+    "from": "0x56E44874F624EbDE6efCc783eFD685f0FBDC6dcF",
+    "contractAddress": "0x52a8193C7f42b75F27e4ce96f8ddBA7e854453Ef",
+    "transactionIndex": 1,
+    "gasUsed": "314148",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x8fb5e938914804535cde3b6568626b428b4ce1b873fdbf9df0097bccc19aad99",
+    "transactionHash": "0xc933c7196e3e738ef1558590591b9a01af2fbf2c145f916072302c8cef9b1798",
+    "logs": [],
+    "blockNumber": 14623114,
+    "cumulativeGasUsed": "335148",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "30a20ae3c316c872c81b0a3ed62cb31c",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ArraySizeMismatch\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"targets\",\"type\":\"address[]\"},{\"internalType\":\"bytes[]\",\"name\":\"data\",\"type\":\"bytes[]\"}],\"name\":\"simulateCalls\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"simulateCalls(address[],bytes[])\":{\"params\":{\"data\":\"Array of data that will be passed to each call\",\"targets\":\"Array of addresses that will be called\"}}},\"title\":\"Tool to be used inside `LOP.simulate()` call\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"simulateCalls(address[],bytes[])\":{\"notice\":\"Calls every target with corresponding data. Then reverts with CALL_RESULTS_0101011 where zeroes and ones denote failure or success of the corresponding call\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/mocks/CallsSimulator.sol\":\"CallsSimulator\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":1000000},\"remappings\":[],\"viaIR\":true},\"sources\":{\"contracts/mocks/CallsSimulator.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n\\npragma solidity 0.8.23;\\n\\n/// @title Tool to be used inside `LOP.simulate()` call\\ncontract CallsSimulator {\\n    error ArraySizeMismatch();\\n\\n    /**\\n     * @notice Calls every target with corresponding data. Then reverts with CALL_RESULTS_0101011 where zeroes and ones\\n     * denote failure or success of the corresponding call\\n     * @param targets Array of addresses that will be called\\n     * @param data Array of data that will be passed to each call\\n     */\\n    function simulateCalls(address[] calldata targets, bytes[] calldata data) external {\\n        if (targets.length != data.length) revert ArraySizeMismatch();\\n        bytes memory reason = new bytes(targets.length);\\n        for (uint256 i = 0; i < targets.length; i++) {\\n            // solhint-disable-next-line avoid-low-level-calls\\n            (bool success, bytes memory result) = targets[i].call(data[i]);\\n            if (success && result.length == 32 && abi.decode(result, (bool))) {\\n                reason[i] = \\\"1\\\";\\n            } else {\\n                reason[i] = \\\"0\\\";\\n            }\\n        }\\n\\n        // Always revert and provide per call results\\n        revert(string(abi.encodePacked(\\\"CALL_RESULTS_\\\", reason)));\\n    }\\n}\\n\",\"keccak256\":\"0xb9598e760223989908d973db4ae7de6078d2e05986f40d8a6d6ce478c72170bf\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x60808060405234610016576104c0908161001c8239f35b600080fdfe608060408181526004908136101561001657600080fd5b60003560e01c637f29a59d1461002b57600080fd5b346102df57807ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102df57813567ffffffffffffffff81116102df57610077903690840161034c565b9060243567ffffffffffffffff81116102df57610097903690860161034c565b909581840361032557506100aa836103ed565b956100b78551978861037d565b8387527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe06100e4856103ed565b0136602089013760005b8481106101b95760206044887fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8c6101b08c805190610174602d838b8101967f43414c4c5f524553554c54535f000000000000000000000000000000000000008852610164815180928f8686019101610467565b810103600d81018552018361037d565b519788967f08c379a000000000000000000000000000000000000000000000000000000000885287015251809281602488015287870190610467565b01168101030190fd5b600581901b8481013573ffffffffffffffffffffffffffffffffffffffff811690036102df57838210156102f757808301357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe1843603018112156102df57830167ffffffffffffffff8135116102df578035360360208201136102df576000918291828a518281933560208201833735810182815203928901355af1903d156102ef573d91610267836103ed565b926102748951948561037d565b83523d6000602085013e5b806102e4575b806102ba575b60019250156102a85760316102a0828b610427565b535b016100ee565b60306102b4828b610427565b536102a2565b50906020818051810103126102df57602001519081151582036102df5760019161028b565b600080fd5b506020825114610285565b60609161027f565b6032887f4e487b71000000000000000000000000000000000000000000000000000000006000525260246000fd5b807fcc6e40b300000000000000000000000000000000000000000000000000000000879252fd5b9181601f840112156102df5782359167ffffffffffffffff83116102df576020808501948460051b0101116102df57565b90601f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0910116810190811067ffffffffffffffff8211176103be57604052565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b67ffffffffffffffff81116103be57601f017fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe01660200190565b908151811015610438570160200190565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b60005b83811061047a5750506000910152565b818101518382015260200161046a56fea26469706673582212206e37271e1f9d245da9cf0642aa91e257d6645ac5585205abe6b8559997c5b6b864736f6c63430008170033",
+  "deployedBytecode": "0x608060408181526004908136101561001657600080fd5b60003560e01c637f29a59d1461002b57600080fd5b346102df57807ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102df57813567ffffffffffffffff81116102df57610077903690840161034c565b9060243567ffffffffffffffff81116102df57610097903690860161034c565b909581840361032557506100aa836103ed565b956100b78551978861037d565b8387527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe06100e4856103ed565b0136602089013760005b8481106101b95760206044887fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8c6101b08c805190610174602d838b8101967f43414c4c5f524553554c54535f000000000000000000000000000000000000008852610164815180928f8686019101610467565b810103600d81018552018361037d565b519788967f08c379a000000000000000000000000000000000000000000000000000000000885287015251809281602488015287870190610467565b01168101030190fd5b600581901b8481013573ffffffffffffffffffffffffffffffffffffffff811690036102df57838210156102f757808301357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe1843603018112156102df57830167ffffffffffffffff8135116102df578035360360208201136102df576000918291828a518281933560208201833735810182815203928901355af1903d156102ef573d91610267836103ed565b926102748951948561037d565b83523d6000602085013e5b806102e4575b806102ba575b60019250156102a85760316102a0828b610427565b535b016100ee565b60306102b4828b610427565b536102a2565b50906020818051810103126102df57602001519081151582036102df5760019161028b565b600080fd5b506020825114610285565b60609161027f565b6032887f4e487b71000000000000000000000000000000000000000000000000000000006000525260246000fd5b807fcc6e40b300000000000000000000000000000000000000000000000000000000879252fd5b9181601f840112156102df5782359167ffffffffffffffff83116102df576020808501948460051b0101116102df57565b90601f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0910116810190811067ffffffffffffffff8211176103be57604052565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b67ffffffffffffffff81116103be57601f017fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe01660200190565b908151811015610438570160200190565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b60005b83811061047a5750506000910152565b818101518382015260200161046a56fea26469706673582212206e37271e1f9d245da9cf0642aa91e257d6645ac5585205abe6b8559997c5b6b864736f6c63430008170033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {
+      "simulateCalls(address[],bytes[])": {
+        "params": {
+          "data": "Array of data that will be passed to each call",
+          "targets": "Array of addresses that will be called"
+        }
+      }
+    },
+    "title": "Tool to be used inside `LOP.simulate()` call",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "simulateCalls(address[],bytes[])": {
+        "notice": "Calls every target with corresponding data. Then reverts with CALL_RESULTS_0101011 where zeroes and ones denote failure or success of the corresponding call"
+      }
+    },
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}
